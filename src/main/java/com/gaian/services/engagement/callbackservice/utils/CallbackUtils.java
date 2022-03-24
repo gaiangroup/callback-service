@@ -18,10 +18,10 @@ public class CallbackUtils {
 
 		CallbackUrl callback = CallbackUrl.class.cast(engagement.getChannel());
 
-		List<ContentModel> mefContents = callback.getContents();
+		List<ContentModel> callbackContents = callback.getContents();
 
-        if (isNotEmpty(mefContents)) {
-            return mefContents.parallelStream().filter(ContentModel::isAsync).collect(toList());
+        if (isNotEmpty(callbackContents)) {
+            return callbackContents.parallelStream().filter(ContentModel::isAsync).collect(toList());
         }
 
         return EMPTY_LIST;

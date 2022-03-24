@@ -9,11 +9,9 @@ import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
 import static org.apache.commons.collections.CollectionUtils.isNotEmpty;
 import static org.apache.commons.collections.MapUtils.EMPTY_MAP;
-import static org.springframework.web.util.UriComponentsBuilder.fromHttpUrl;
 
 import java.net.URI;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +23,6 @@ import org.joda.time.Period;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -38,7 +35,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.gaian.services.engagement.callbackservice.error.exception.CallbackDeliveryException;
 import com.gaian.services.engagement.content.processor.ContentProcessor;
 import com.gaian.services.engagement.dao.EngagementInstanceDao;
@@ -71,9 +67,6 @@ public class CallbackUrlProcessorImpl implements CallbackUrlProcessor {
 
     @Autowired
     private Period defaultExpiryPeriod;
-
-    @Autowired
-    private PackageManager packageManager;
 
     @Autowired
     private EngagementsRepo engagementsRepo;
@@ -209,238 +202,185 @@ public class CallbackUrlProcessorImpl implements CallbackUrlProcessor {
                 .findById(instance.getEngagementId()).ifPresent(engagement -> resumeEngagement(engagement, instance)));
     }
 
+
     /**
      * Continues with the processing of engagement
      *
      * @param engagement engagement request
      * @param instance   engagement instance
      */
+    Map<String, Object> dataSourcesMap = new HashMap<String, Object>();
     @Override
-    public void resumeEngagement(EngagementDBModel engagengagementement, EngagementInstance instance) {
+    public void resumeEngagement(EngagementDBModel engagement, EngagementInstance instance) {
 
-        CallbackUrl callbackUrl = CallbackUrl.class.cast(engagengagementement.getChannel());
-
+        CallbackUrl callbackUrl = CallbackUrl.class.cast(engagement.getChannel());
         if (instance != null) {
-            //String url = fromHttpUrl(callbackUrl.getUrl()).toUriString();
             String url = callbackUrl.getUrl();
+            List<DataSourceMapping> dataSources = callbackUrl.getDataSources();
 
-//----------------- DataSource Mapping Starts-------------------------
-            Map<String, Object> tempdataSources = new HashMap<String, Object>();
-            List<DataSourceMapping> dataSources1 = callbackUrl.getDataSources();
-            for (DataSourceMapping tempKey : dataSources1) {
-                String key = tempKey.getKey();
+            dataSources.forEach(d -> {
+                String key = d.getKey();
                 if (key == "source") {
-                    tempdataSources.put(key, instance.getSourceData());
+                    dataSourcesMap.put(key, instance.getSourceData());
                 } else if (key == "destination") {
-                    tempdataSources.put(key, instance.getDestData());
+                    dataSourcesMap.put(key, instance.getDestData());
                 } else if (key == "trigger") {
-                    tempdataSources.put(key, instance.getEvent());
+                    dataSourcesMap.put(key, instance.getEvent());
                 }
-            }
-//----------------	 DataSource Mapping Ends ----------------------------------------		
-
-// --------------------Pathparam starts----------------------------------
+            });
+            log.info("Mapping completed for EngagementInstance {}", dataSources);
             String startValue = "jsonPath:";
-            URI uri = null;
-
-            Map<String, String> pathparams = callbackUrl.getPathParams();
-
+            Map<String, String> pathParams = callbackUrl.getPathParams();
             Map<String, String> pathParamsMap = new HashMap<>();
-
-
-            for (Map.Entry pathParamsEntry : pathparams.entrySet()) {
-
-                Object tempValue = pathParamsEntry.getValue();
-                if (tempValue instanceof String) {
-                    String matchingValue = tempValue.toString();
-
-                    if (matchingValue.startsWith(startValue)) {
-                        String tempKey = pathParamsEntry.getKey().toString();
-
-                        String tempParameterValue = matchingValue.split(":")[1];
-                        String parameterValue = tempParameterValue.replace(".", ":").split(":")[0];
-                        // saves val
-                        Object temp = tempdataSources.get(parameterValue);
-
-
-                        String tempDataSource[] = tempParameterValue.replace(".", ":").split(":");
+            for (Map.Entry pathParamsEntry : pathParams.entrySet()) {
+                Object pathElementValue = pathParamsEntry.getValue();
+                if (pathElementValue instanceof String) {
+                    String value = pathElementValue.toString();
+                    if (value.startsWith(startValue)) {
+                        String key = pathParamsEntry.getKey().toString();
+                        String paramValue = value.split(":")[1];
+                        String parameterValue = paramValue.replace(".", ":").split(":")[0];
+                        Object instanceJson = dataSourcesMap.get(parameterValue);
+                        String dataSourceValues[] = paramValue.replace(".", ":").split(":");
                         String jsonPathExpression = "";
-                        jsonPathExpression = jsonPathExpression + tempDataSource[1];
-                        for (int i = 2; i < tempDataSource.length; i++) {
-                            jsonPathExpression = jsonPathExpression + "." + tempDataSource[i];
+                        jsonPathExpression = jsonPathExpression + dataSourceValues[1];
+                        for (int index = 2; index < dataSourceValues.length; index++) {
+                            jsonPathExpression = jsonPathExpression + "." + dataSourceValues[index];
                         }
-
-                        Object parsed = JsonPath.parse(temp.toString()).read(jsonPathExpression, Object.class);
-
-                        //Object resolvedValue = JsonPath.parse(resolvedJson).read(jsonPathExpression, Object.class);
-                        String resValue = parsed.toString();
-                        pathParamsMap.put(tempKey, resValue);
-
-
+                        Object parsedValue = JsonPath.parse(instanceJson.toString()).read(jsonPathExpression, Object.class);
+                        String outputValue = parsedValue.toString();
+                        pathParamsMap.put(key, outputValue);
                     } else {
-                        String tempKey = pathParamsEntry.getKey().toString();
+                        String Key = pathParamsEntry.getKey().toString();
 
-                        pathParamsMap.put(tempKey, matchingValue);
-
-
+                        pathParamsMap.put(Key, value);
                     }
                 }
             }
-
+            log.info("Resolved values of pathParams {}",pathParamsMap);
             UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(url);
-
             Map<String, List<String>> queryParams = callbackUrl.getQueryParams();
-
             HashMap<String, List<String>> queryParamsResolved = new HashMap<String, List<String>>();
-            for (Map.Entry queryParamsEntry : queryParams.entrySet()) {
+                queryParams.entrySet().forEach(queryParamsEntry -> {
                 String key = (String) queryParamsEntry.getKey();
-                List<String> templi = (List<String>) queryParamsEntry.getValue();
-                for (int i = 0; i < templi.size(); i++) {
-                    String tempValue = templi.get(i);
-
-                    if (tempValue.startsWith(startValue)) {
-                        String tempqueryParameterValue = tempValue.split(":")[1];
-                        String queryparameterValue = tempqueryParameterValue.replace(".", ":").split(":")[0];
-                        Object temp = tempdataSources.get(queryparameterValue);
-                        String json = temp.toString();
+                List<String> list = (List<String>) queryParamsEntry.getValue();
+                for (int index = 0; index < list.size(); index++) {
+                    String indexValue = list.get(index);
+                    if (indexValue.startsWith(startValue)) {
+                        String queryParamValue = indexValue.split(":")[1];
+                        String processedQueryParamValue = queryParamValue.replace(".", ":").split(":")[0];
+                        Object instanceJson = dataSourcesMap.get(processedQueryParamValue);
+                        String json = instanceJson.toString();
                         ObjectMapper mapper = new ObjectMapper();
-                        String resolvedJson = "";
-                        try {
-                            resolvedJson = mapper.writeValueAsString(temp);
-                        } catch (JsonProcessingException e) {
-                            e.printStackTrace();
-                        }
-                        String tempDataSource[] = tempqueryParameterValue.replace(".", ":").split(":");
+                        String dataSourceValues[] = queryParamValue.replace(".", ":").split(":");
                         String jsonPathExpression = "";
-                        jsonPathExpression = jsonPathExpression + tempDataSource[1];
-                        for (int j = 2; j < tempDataSource.length; j++) {
-                            jsonPathExpression = jsonPathExpression + "." + tempDataSource[j];
+                        jsonPathExpression = jsonPathExpression + dataSourceValues[1];
+                        for (int dsIndex = 2; dsIndex < dataSourceValues.length; dsIndex++) {
+                            jsonPathExpression = jsonPathExpression + "." + dataSourceValues[dsIndex];
                         }
                         String parsed = JsonPath.parse(json).read(jsonPathExpression, String.class);
-                        String resValue = parsed.toString();
-                        templi.set(i, resValue);
-                        queryParamsResolved.put(key, templi);
-
+                        String outputValue = parsed.toString();
+                        list.set(index, outputValue);
+                        queryParamsResolved.put(key, list);
                     } else {
-                        queryParamsResolved.put(key, templi);
-
+                        queryParamsResolved.put(key, list);
                     }
                 }
+            });
 
-            }
-            System.out.println(queryParamsResolved);
-            //UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(url);
-            for (Map.Entry queryParamsEntry : queryParamsResolved.entrySet()) {
-                String key = (String) queryParamsEntry.getKey();
-                List<String> value = (List<String>) queryParamsEntry.getValue();
+            queryParamsResolved.entrySet().forEach(entry -> {
+                String key = (String) entry.getKey();
+                List<String> value = (List<String>) entry.getValue();
                 builder.queryParam(key, value);
-
-            }
-            System.out.println(builder.buildAndExpand(pathParamsMap).toUri());
-            URI uri1 = builder.buildAndExpand(pathParamsMap).toUri();
-
+            });
+            URI uri = builder.buildAndExpand(pathParamsMap).toUri();
+            log.info("Resolved value of URL {}", uri);
             Map<String, Object> body = callbackUrl.getBody();
             Map<String, Object> resolvedBody = new HashMap<String, Object>();
-
-            for (Map.Entry<String, Object> bodyEntry : body.entrySet()) {
-
-                Object keyValue = bodyEntry.getValue();
-                if (keyValue instanceof List<?>) {
-                    List<Object> tempList = (List<Object>) keyValue;
-                    for (int i = 0; i < tempList.size(); i++) {
-                        Object tempElement = tempList.get(i);
-                        if (tempElement instanceof String) {
-                            String tempString = tempElement.toString();
-                            if (tempString.startsWith(startValue)) {
-                                String tempBodyParameterValue = tempString.split(":")[1];
-                                String bodyValue = tempBodyParameterValue.replace(".", ":").split(":")[0];
-                                Object temp = tempdataSources.get(bodyValue);
-                                String tempDataSource[] = tempBodyParameterValue.replace(".", ":").split(":");
+                body.entrySet().forEach(bodyEntry -> {
+                Object bodyEntryValue = bodyEntry.getValue();
+                if (bodyEntryValue instanceof List<?>) {
+                    List<Object> list = (List<Object>) bodyEntryValue;
+                    for (int count = 0; count < list.size(); count++) {
+                        Object listElement = list.get(count);
+                        if (listElement instanceof String) {
+                            String listElementValue = listElement.toString();
+                            if (listElementValue.startsWith(startValue)) {
+                                String bodyParamValue = listElementValue.split(":")[1];
+                                String bodyValue = bodyParamValue.replace(".", ":").split(":")[0];
+                                Object instanceJson = dataSourcesMap.get(bodyValue);
+                                String tempDataSource[] = bodyParamValue.replace(".", ":").split(":");
                                 String jsonPathExpression = "";
                                 jsonPathExpression = jsonPathExpression + tempDataSource[1];
-                                for (int j = 2; j < tempDataSource.length; j++) {
-                                    jsonPathExpression = jsonPathExpression + "." + tempDataSource[j];
+                                for (int index = 2; index < tempDataSource.length; index++) {
+                                    jsonPathExpression = jsonPathExpression + "." + tempDataSource[index];
                                 }
-                                Object parsed = JsonPath.parse(temp.toString()).read(jsonPathExpression, Object.class);
-                                String resValue = parsed.toString();
-                                tempList.set(i, resValue);
+                                Object parsed = JsonPath.parse(instanceJson.toString()).read(jsonPathExpression, Object.class);
+                                String outputValue = parsed.toString();
+                                list.set(count, outputValue);
                             }
                         }
 
                     }
+                } else if (bodyEntryValue instanceof String) {
+                    String bodyElementValue = bodyEntryValue.toString();
+                    if (bodyElementValue.startsWith(startValue)) {
 
-                } else if (keyValue instanceof String) {
-                    String tempValue = keyValue.toString();
-
-                    if (tempValue.startsWith(startValue)) {
-
-                        String tempBodyStringValue = tempValue.split(":")[1];
-                        String tempArray[] = tempBodyStringValue.replace(".", ":").split(":");
-                        if (tempArray.length == 1) {
-                            Object temp = tempdataSources.get(tempBodyStringValue);
-                            String value = temp.toString();
+                        String bodyStringValue = bodyElementValue.split(":")[1];
+                        String bodyArray[] = bodyStringValue.replace(".", ":").split(":");
+                        if (bodyArray.length == 1) {
+                            Object instanceJson = dataSourcesMap.get(bodyStringValue);
+                            String value = instanceJson.toString();
                             bodyEntry.setValue(value);
-
                         } else {
-                            String bodyValue = tempBodyStringValue.replace(".", ":").split(":")[0];
-                            Object temp = tempdataSources.get(bodyValue);
-                            String tempDataSource[] = tempBodyStringValue.replace(".", ":").split(":");
+                            String bodyValue = bodyStringValue.replace(".", ":").split(":")[0];
+                            Object instanceJson = dataSourcesMap.get(bodyValue);
+                            String tempDataSource[] = bodyStringValue.replace(".", ":").split(":");
                             String jsonPathExpression = "";
                             jsonPathExpression = jsonPathExpression + tempDataSource[1];
-                            for (int j = 2; j < tempDataSource.length; j++) {
-                                jsonPathExpression = jsonPathExpression + "." + tempDataSource[j];
+                            for (int index = 2; index < tempDataSource.length; index++) {
+                                jsonPathExpression = jsonPathExpression + "." + tempDataSource[index];
                             }
-                            Object parsed = JsonPath.parse(temp.toString()).read(jsonPathExpression, Object.class);
-                            String resValue = parsed.toString();
-                            bodyEntry.setValue(resValue);
-
+                            Object parsed = JsonPath.parse(instanceJson.toString()).read(jsonPathExpression, Object.class);
+                            String outputValue = parsed.toString();
+                            bodyEntry.setValue(outputValue);
                         }
-
                     }
-
-                } else if (keyValue instanceof Map) {
-                    Map<String, Map<String, Object>> tempMap = (Map<String, Map<String, Object>>) keyValue;
-                    for (Map.Entry<String, Map<String, Object>> elementEntry : tempMap.entrySet()) {
-
-                        Map<String, Object> fieldsMap = elementEntry.getValue();
-
-                        for (Map.Entry<String, Object> fieldEntry : fieldsMap.entrySet()) {
-                            //System.out.println(fieldEntry.getValue());
-                            String key = fieldEntry.getKey();
-                            Object value = fieldEntry.getValue();
-                            if (value instanceof String) {
-                                String stringValue = value.toString();
-                                if (stringValue.startsWith(startValue)) {
-
-                                    String tempBodyParameterValue = stringValue.split(":")[1];
-                                    String bodyValue = tempBodyParameterValue.replace(".", ":").split(":")[0];
-                                    Object temp = tempdataSources.get(bodyValue);
-                                    String tempDataSource[] = tempBodyParameterValue.replace(".", ":").split(":");
-                                    String jsonPathExpression = "";
-                                    jsonPathExpression = jsonPathExpression + tempDataSource[1];
-                                    for (int j = 2; j < tempDataSource.length; j++) {
-                                        jsonPathExpression = jsonPathExpression + "." + tempDataSource[j];
-                                    }
-                                    Object parsed = JsonPath.parse(temp.toString()).read(jsonPathExpression, Object.class);
-                                    String resValue = parsed.toString();
-                                    fieldEntry.setValue(parsed);
-                                }
-
-                            }
-                        }
-
-                    }
+                } else if (bodyEntryValue instanceof Map) {
+                    Map<String, Object> bodyEntryMap = (Map<String, Object>) bodyEntryValue;
+                    resolveMap(bodyEntryMap);
                 }
-
-            }
-
-            restTemplate = new RestTemplate();
-            ResponseEntity<String> response = restTemplate.exchange(uri1,
+            });
+            ResponseEntity<String> response = restTemplate.exchange(uri,
                     HttpMethod.valueOf(callbackUrl.getHttpMethod().toString()), new HttpEntity(callbackUrl.getBody()),
                     String.class);
-
         }
-
+    }
+    public  void resolveMap(Map<String,Object> tempMap) {
+            tempMap.entrySet().forEach(entry -> {
+            Object value = entry.getValue();
+            String key = entry.getKey();
+            if (value instanceof  String) {
+                String valueString = value.toString();
+                if ((valueString).startsWith("jsonPath:")) {
+                    String tempBodyParameterValue = valueString.split(":")[1];
+                    String bodyValue = tempBodyParameterValue.replace(".", ":").split(":")[0];
+                    Object instanceJson = dataSourcesMap.get(bodyValue);
+                    String tempDataSource[] = tempBodyParameterValue.replace(".", ":").split(":");
+                    String jsonPathExpression = "";
+                    jsonPathExpression = jsonPathExpression + tempDataSource[1];
+                    for (int index = 2; index < tempDataSource.length; index++) {
+                        jsonPathExpression = jsonPathExpression + "." + tempDataSource[index];
+                    }
+                    Object parsed = JsonPath.parse(instanceJson.toString()).read(jsonPathExpression, Object.class);
+                    String outputValue = parsed.toString();
+                    tempMap.put(key,outputValue);
+                }
+            } else if (value instanceof Map) {
+                Map<String, Object> inputMap = (Map<String, Object>) value;
+                resolveMap(inputMap);
+            }
+        });
     }
 
     /**
