@@ -305,7 +305,7 @@
 						<exclude>**/config/**/*.class</exclude>
 						<exclude>**/kafka/**/*.class</exclude>
 						<exclude>**/error/**/*.class</exclude>
-						<exclude>**/MEFApplication.class</exclude>
+						<exclude>**/APIApplication.class</exclude>
 					</excludes>
 				</configuration>
 				<executions>
@@ -381,7 +381,7 @@
 			</resource>
 		</resources>
 
-		<finalName>mef-service</finalName>
+		<finalName>api-service</finalName>
 	</build><repositories>
 	<repository>
 		<id>nexus</id>
