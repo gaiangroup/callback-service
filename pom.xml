@@ -9,9 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.gaian.services.engagement</groupId>
-	<artifactId>callback-service</artifactId>
+	<artifactId>api-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>callback-service</name>
+
+	<name>api-service</name>
 	<description>Demo project for Spring Boot</description>
 	<properties>
 	<swagger.version>2.8.0</swagger.version>
