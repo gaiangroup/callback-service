@@ -371,18 +371,6 @@
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
 
 		</plugins>
 
@@ -394,21 +382,26 @@
 		</resources>
 
 		<finalName>mef-service</finalName>
+	</build><repositories>
+	<repository>
+		<id>nexus</id>
+		<url>http://dev.nexus-lib.gaiansolutions.com:8081/repository/releases/</url>
+		<name>nexus</name>
+		<releases>
+			<enabled>true</enabled>
+		</releases>
+		<snapshots>
+			<enabled>true</enabled>
+		</snapshots>
+	</repository>
+</repositories>
 
-
-	</build>
-	<repositories>
-		<repository>
+	<pluginRepositories>
+		<pluginRepository>
 			<id>nexus</id>
-			<url>http://dev.nexus-lib.gaiansolutions.com:8081/repository/releases/</url>
 			<name>nexus</name>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-		</repository>
-	</repositories>
+			<url>http://dev.nexus-lib.gaiansolutions.com:8081/repository/public/</url>
+		</pluginRepository>
+	</pluginRepositories>
 
 </project>
