@@ -115,23 +115,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
-      - name: Setup Gaian Nexus Repo credentials
-        uses: s4u/maven-settings-action@v2.4.0
-        with:
-          servers: |
-            [{
-              "id": "nexus",
-              "username": "${{ secrets.NEXUS_USERNAME }}",
-              "password": "${{ secrets.NEXUS_PASSWORD }}"
-            }]
-          mirrors: |
-            [{
-              "id": "nexus",
-              "name": "nexus",
-              "mirrorOf": "nexus",
-              "url": "${{ env.NEXUS_REPO_URL }}",
-              "blocked": false
-            }]
+#       - name: Setup Gaian Nexus Repo credentials
+#         uses: s4u/maven-settings-action@v2.4.0
+#         with:
+#           servers: |
+#             [{
+#               "id": "nexus",
+#               "username": "${{ secrets.NEXUS_USERNAME }}",
+#               "password": "${{ secrets.NEXUS_PASSWORD }}"
+#             }]
+#           mirrors: |
+#             [{
+#               "id": "nexus",
+#               "name": "nexus",
+#               "mirrorOf": "nexus",
+#               "url": "${{ env.NEXUS_REPO_URL }}",
+#               "blocked": false
+#             }]
 
       - name: Run Unit Tests, publish coverage to Sonar
         run: mvn clean install sonar:sonar -Dsonar.qualitygate.wait=true -Dsonar.projectKey=${{env.SERVICE_CODE}}-qa -Dsonar.host.url=${{ secrets.SONAR_HOST }} -Dsonar.login=${{ secrets.SONAR_TOKEN }} -Dproject.version=${{ steps.version.outputs.version }}
