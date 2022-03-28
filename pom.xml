@@ -117,8 +117,7 @@
 			<artifactId>json-path</artifactId>
 			<version>2.4.0</version>
 		</dependency>
-    
-		
+
 	</dependencies>
 	<build>
 		<plugins>
@@ -301,12 +300,12 @@
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.7.9</version>
 				<configuration>
-					<excludes>
+					<!--<excludes>
 						<exclude>**/config/**/*.class</exclude>
 						<exclude>**/kafka/**/*.class</exclude>
 						<exclude>**/error/**/*.class</exclude>
-						<exclude>**/APIApplication.class</exclude>
-					</excludes>
+						<exclude>**/MEFApplication.class</exclude>
+					</excludes>-->
 				</configuration>
 				<executions>
 					<execution>
@@ -371,6 +370,18 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
 
 		</plugins>
 
@@ -382,20 +393,21 @@
 		</resources>
 
 		<finalName>api-service</finalName>
-	</build><repositories>
-	<repository>
-		<id>nexus</id>
-		<url>http://dev.nexus-lib.gaiansolutions.com:8081/repository/releases/</url>
-		<name>nexus</name>
-		<releases>
-			<enabled>true</enabled>
-		</releases>
-		<snapshots>
-			<enabled>true</enabled>
-		</snapshots>
-	</repository>
-</repositories>
 
+	</build>
+	<repositories>
+		<repository>
+			<id>nexus</id>
+			<url>http://dev.nexus-lib.gaiansolutions.com:8081/repository/releases/</url>
+			<name>nexus</name>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
 	<pluginRepositories>
 		<pluginRepository>
 			<id>nexus</id>
@@ -403,5 +415,6 @@
 			<url>http://dev.nexus-lib.gaiansolutions.com:8081/repository/public/</url>
 		</pluginRepository>
 	</pluginRepositories>
+
 
 </project>
