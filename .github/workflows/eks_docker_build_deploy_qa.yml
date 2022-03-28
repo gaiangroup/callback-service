@@ -22,7 +22,7 @@ env:
   NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
   NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
   BASE_URL: http://dev-ingress-gateway.gaiansolutions.com
-  //CODE_PATH: /home/runner/work/api-service/api-service
+  CODE_PATH: /home/runner/work/callback-service/callback-service
 
   #For BVT
   API_ENV: API_K8S
