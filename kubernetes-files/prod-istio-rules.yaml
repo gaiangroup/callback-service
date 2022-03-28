@@ -1,0 +1,125 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: istio-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: api-service-destination
+spec:
+  host: api-service
+  subsets:
+    - name: v1
+      labels:
+        version: v1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-service-route
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - istio-gateway
+  http:
+    - match:
+        - uri:
+            prefix: "/api-service/"
+      rewrite:
+          uri: "/"
+      route:
+        - destination:
+            host: api-service
+            subset: v1
+#      timeout: 0.5s # - to enable if using Istio fault on callme-service route
+
+### jwt auth
+---
+apiVersion: "security.istio.io/v1beta1"
+kind: "RequestAuthentication"
+metadata:
+  name: "api-service-jwt-auth"
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: api-service
+  jwtRules:
+    - issuer: "gaian.com"
+      jwksUri: "http://ingress-gateway.gaiansolutions.com/iam-service/.well-known/jwks.json"
+      forwardOriginalToken: true
+
+### swagger rule
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  namespace: default
+  name: api-service-swagger-rules
+spec:
+  selector:
+    matchLabels:
+      app: api-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            requestPrincipals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"]
+    - to:
+        - operation:
+            methods: ["GET","HEAD"]
+
+### service rule
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  namespace: default
+  name: api-service-other-rules
+spec:
+  selector:
+    matchLabels:
+      app: api-service
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            methods: [ "GET","POST","PUT","DELETE", "PATCH" ]
+      when:
+        - key: request.auth.claims[authorities]
+          values: [ "ROLE_MARKETPLACE_USER","ROLE_OMNI_CONSUMER" ]
+      from:
+        - source:
+            requestPrincipals: ["gaian.com/gaian.com"]
+
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  namespace: default
+  name: engagements-processor-to-api-service-rules
+spec:
+  selector:
+    matchLabels:
+      app: api-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/default/sa/engagements-processor"]
+      to:
+        - operation:
+            methods: ["GET","POST","PUT","DELETE"]
