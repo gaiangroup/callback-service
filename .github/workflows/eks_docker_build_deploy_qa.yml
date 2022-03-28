@@ -5,9 +5,9 @@ name: CI with Java Spring Boot repo, maven build tool, packaging & pushing as im
 # Events
 on:
   push:
-    branches: [ qa ]
+    branches: [ main ]
   pull_request:
-    branches: [ qa ]
+    branches: [ main ]
     types: [ opened, edited, reopened, closed ]
 
 env:
@@ -115,9 +115,6 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2
-
-      - name: remove settings.yaml
-        run: rm -rf /home/runner/.m2/settings.xml
         
       - name: Setup Maven Settings With Nexus credentials
         uses: s4u/maven-settings-action@v2.4.0
