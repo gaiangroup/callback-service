@@ -120,6 +120,19 @@
     
 		
 	</dependencies>
+	<repositories>
+		<repository>
+			<id>nexus</id>
+			<url>http://dev.nexus-lib.gaiansolutions.com:8081/repository/releases/</url>
+			<name>nexus</name>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
 
 	<build>
 		<plugins>
