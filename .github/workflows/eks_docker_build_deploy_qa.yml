@@ -116,6 +116,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2
 
+      - name: remove settings.yaml
+        run: rm -rf /home/runner/.m2/settings.xml
+        
+        
+        
       - name: Setup Gaian Nexus Repo credentials
         uses: s4u/maven-settings-action@v2.4.0
         with:
