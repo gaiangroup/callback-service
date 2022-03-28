@@ -80,6 +80,7 @@ jobs:
               "blocked": false
             }]
 
+
       - name: Run Unit Tests, publish coverage to Sonar
         run: mvn clean install sonar:sonar -Dsonar.qualitygate.wait=true -Dsonar.projectKey=${{env.SERVICE_CODE}}-qa -Dsonar.host.url=${{ secrets.SONAR_HOST }} -Dsonar.login=${{ secrets.SONAR_TOKEN }} -Dproject.version=${{ steps.version.outputs.version }}
 
