@@ -314,7 +314,7 @@ public class ApiProcessorImpl implements ApiProcessor {
                     resolveMap(bodyEntryMap);
                 }
             });
-            restTemplate = new RestTemplate();
+
             ResponseEntity<String> response = restTemplate.exchange(uri,
                     HttpMethod.valueOf(apiUrl.getHttpMethod().toString()), new HttpEntity(apiUrl.getBody()),
                     String.class);
